@@ -14,6 +14,7 @@ setup(
     url='https://github.com/supersaiyan/GAPI4Term',
     install_requires=requirements,
     packages=find_packages(),
+    license="https://opensource.org/licenses/MIT",
     scripts=[
         "GApi4Term/gapi"
     ]
