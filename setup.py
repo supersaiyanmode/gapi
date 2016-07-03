@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 
 from setuptools import setup, find_packages
+from pip.req import parse_requirements
 
+requirements = [str(x.req) for x in parse_requirements("requirements.txt", session=False)]
 
 setup(
     name='gapi4term',
@@ -10,7 +12,7 @@ setup(
     author='Srivatsan Iyer',
     author_email='supersaiyanmode.rox@gmail.com',
     url='https://github.com/supersaiyan/GAPI4Term',
-    #packages=['GApi4Term', 'GApi4Term.core', 'GApi4Term.commands'],
+    install_requires=requirements,
     packages=find_packages(),
     scripts=[
         "GApi4Term/gapi"
