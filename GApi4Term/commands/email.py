@@ -1,9 +1,9 @@
 from itertools import groupby
 import argparse
 
-from core import GMail
-from commands.utils import KeyValuePairType, AttachFileType
-from commands.utils import MessageType, MessageFileType
+from GApi4Term.core import GMail
+from GApi4Term.commands.utils import KeyValuePairType, AttachFileType
+from GApi4Term.commands.utils import MessageType, MessageFileType
 
 def prepareKeyValueHTML(args):
     e = lambda x: cgi.escape(unicode(x)).encode('ascii', 'xmlcharrefreplace')

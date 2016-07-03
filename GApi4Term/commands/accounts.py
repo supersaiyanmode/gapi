@@ -1,4 +1,4 @@
-from core import GoogleAccounts
+from GApi4Term.core import GoogleAccounts
 
 class AccountsCommandsHandler(object):
     command = "account"
