@@ -93,10 +93,13 @@ class GMail(object):
     def detail(self, message_id):
 	def parse_message(msg):
 	    headers = {obj["name"].lower(): obj["value"] for obj in msg["payload"]["headers"]}
-	    subject = headers["subject"]
+	    subject = headers.get("subject", "(no subject)")
 	    snippet = msg["snippet"]
 	    author = headers["from"]
-	    time = datetime.fromtimestamp(mktime(parsedate(headers["date"])))
+	    if "date" in headers:
+		time = datetime.fromtimestamp(mktime(parsedate(headers["date"])))
+	    else:
+		time = datetime.fromtimestamp(int(msg["internalDate"])/1000)
 	    return {
 		"headers": headers, "subject": subject, "snippet": snippet,
 		"author": author, "time": time}
