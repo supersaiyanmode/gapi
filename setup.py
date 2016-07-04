@@ -15,7 +15,9 @@ setup(
     install_requires=requirements,
     packages=find_packages(),
     license="https://opensource.org/licenses/MIT",
-    scripts=[
-        "GApi4Term/gapi"
-    ]
+    entry_points={
+        'console_scripts': [
+            'gapi = GApi4Term.gapi:main',
+        ],
+    }
 )

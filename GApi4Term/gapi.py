@@ -9,7 +9,7 @@ from GApi4Term.core import Config
 from GApi4Term.commands import Parser
 
 def main():
-    config = Config(os.path.expanduser("~/.config/gapi4term/config.json"))
+    config = Config()
     parser = Parser(config)
     sys.exit(parser.process())
 

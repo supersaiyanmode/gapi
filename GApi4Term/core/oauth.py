@@ -23,7 +23,6 @@ class OAuthWorkflow(object):
         webbrowser.open_new(redirect_url)
         
     def on_code(self, code):
-        print "Code:", code
         credentials = self.flow.step2_exchange(code)
         obj = json.loads(credentials.to_json())
         self.callback(obj)
@@ -52,9 +51,11 @@ class OAuthServer(object):
                 self.wfile.write("You can close this window.")
                 self.wfile.close()
                 Thread(target=oauthServer.callback, args=(code,)).start()
+            def log_message(self, *args):
+                pass
 
         server = HTTPServer((self.host, self.port), OAuthServerHandler)
-        print "OAuth Server running"
+        print "Please Authenticate with your Google account."
         server.handle_request()
     
 
@@ -68,6 +69,7 @@ class GoogleAccounts(object):
         def on_credentials(cred):
             self.config.config["ACCOUNTS"] = cred
             self.config.update()
+            print "Successfully saved credentials."
 
         server = OAuthServer(lambda code: oauth.on_code(code))
         Thread(target=server.run).start()
