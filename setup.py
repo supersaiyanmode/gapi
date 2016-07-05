@@ -7,11 +7,11 @@ requirements = [str(x.req) for x in parse_requirements("requirements.txt", sessi
 
 setup(
     name='gapi4term',
-    version='0.8.1',
+    version='0.8.2',
     description='Command Line for Google Services',
     author='Srivatsan Iyer',
     author_email='supersaiyanmode.rox@gmail.com',
-    url='https://github.com/supersaiyanmode/GAPI4Term',
+    url='https://github.com/supersaiyanmode/gapi',
     install_requires=requirements,
     packages=find_packages(),
     license="https://opensource.org/licenses/MIT",
