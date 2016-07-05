@@ -10,10 +10,14 @@ from oauth2client.client import OAuth2Credentials
 
 class OAuthWorkflow(object):
     def __init__(self, client_id, secret, redirect, callback):
+        scopes = [
+            'https://mail.google.com/',
+            'https://www.googleapis.com/auth/drive',
+        ]
 	self.flow =  OAuth2WebServerFlow(
                 client_id=client_id,
                 client_secret=secret,
-                scope='https://mail.google.com/',
+                scope=" ".join(scopes),
                 redirect_uri=redirect,
                 prompt="consent")
         self.callback = callback

@@ -2,10 +2,12 @@ import argparse
 
 from .accounts import AccountsCommandsHandler
 from .email import EmailCommandsHandler
+from .drive import DriveCommandsHandler
 
 handlers = [
     AccountsCommandsHandler,
     EmailCommandsHandler,
+    DriveCommandsHandler,
 ]
 
 class Parser(object):
