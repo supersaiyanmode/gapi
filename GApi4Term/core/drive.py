@@ -1,12 +1,46 @@
 import json
-import os.path
+import os
 from httplib2 import Http
 import mimetypes
+import hashlib
 
 from apiclient import discovery, errors
 from apiclient.http import MediaFileUpload
 
 from oauth2client.client import OAuth2Credentials
+
+class DirectorySync(object):
+    def __init__(self, drive, path, folder_id, callback):
+        self.drive = drive
+        self.fs_path = path
+        self.drive_folder_id = folder_id
+        self.conflict_callback = callback
+
+    def sync_dir(self, path=None, folder_id=None):
+        if path is None:
+            path = self.fs_path
+        if folder_id is None:
+            folder_id = self.drive_folder_id
+
+        fs_entries = list(os.scandir(path))
+        fs_entry_map = {x.name: x for x in fs_entries}
+        fs_files = [x.name for x in fs_entries if x.is_file()]
+        fs_dirs = [x.name for x in fs_entries if x.is_dir()]
+
+        drive_entries = list(self.search(parents=folder_id, trashed=True))
+        drive_entry_map = {x["name"]: x for x in drive_entries }
+        drive_files = [x["name"] for x in drive_entries if x["mimeType"] != self.folder_mime]
+        drive_folders = [x["name"] for x in drive_entries if x["mimeType"] == self.folder_mime]
+
+    def sync_file(self, fs_path, drive_id):
+        if not os.path.isfile(fs_path) and not drive_id["trashed"]: #Both exist
+            pass
+    
+    def md5(self, path):
+        hash_md5 = hashlib.md5()
+        with open(path, 'rb') as f:
+            pass
+
 
 class Drive(object):
     public_folder = "GAPI4TermPublic"
@@ -40,6 +74,10 @@ class Drive(object):
             "description": "Public folder created by GAPI4Term"
         }
         return self.create_folder(self.public_folder, **opts)["id"]
+    
+    def sync_dir(self, folder_id, path, callback):
+        ds = DirectorySync(drive, path, folder_id, callback)
+        ds.sync_dir()
 
     def iterate_dir(self, dir_id, parents=None):
         if parents is None:
@@ -89,7 +127,8 @@ class Drive(object):
             return self.service.files().create(body=kwargs).execute()
 
     def get_file(self, file_id, fields=None):
-        field_list = ["id", "mimeType", "name"]
+        field_list = ["id", "mimeType", "name", "createdTime", "modifiedTime",
+                "version", "md5Checksum"]
         if fields is not None:
             field_list = field_list + fields
         fields_str = ",".join(field_list)
@@ -118,6 +157,7 @@ class Drive(object):
             elif type(value) == int:
                 query.append("{} = {}".format(key, value))
         query_str = " and ".join(query)
+        #TODO: Make this into a generator that automatically uses nextPageToken
         return self.service.files().list(q=query_str).execute()["files"]
 
     def share(self, file_id, **kwargs):
