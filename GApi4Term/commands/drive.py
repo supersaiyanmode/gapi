@@ -22,7 +22,7 @@ class DriveCommandsHandler(object):
 
     def process_instant_share(self, args, config):
         for typ, f in args.files:
-            file_id = self.drive.public_upload(f.name)
+            file_id = self.drive.public_upload(f.name)["id"]
             link = self.drive.share_public_link(file_id)
             print "Upload:", f.name, "at:", link
 
