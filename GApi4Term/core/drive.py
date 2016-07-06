@@ -41,7 +41,21 @@ class Drive(object):
         }
         return self.create_folder(self.public_folder, **opts)["id"]
 
-
+    def iterate_dir(self, dir_id, parents=None):
+        if parents is None:
+            parents = []
+        for entry in self.list_dir(dir_id):
+            yield entry, parents
+            if entry["mimeType"] == self.folder_mime:
+                parents.insert(0, dir_id)
+                recur_res = self.iterate_dir(entry["id"], parents=parents)
+                for child, parents in recur_res:
+                    yield child, parents
+                parents.pop(0)
+    
+    def list_dir(self, dir_id):
+        for obj in self.search(parents=dir_id):
+            yield obj
 
     ###########################
     # CORE FUNCTIONALITY BELOW
@@ -91,20 +105,19 @@ class Drive(object):
                 kwargs["mimeType"] = self.folder_mime
 
         if "parents" in kwargs:
-            if type(kwargs["parents"]) == str:
+            if isinstance(kwargs["parents"], basestring):
                 kwargs["parents"] = [kwargs["parents"]]
             for parent in kwargs.pop("parents"):
                 query.append("'{}' in parents".format(parent))
 
         for key, value in kwargs.items():
-            if type(value) == str:
+            if isinstance(value, basestring):
                 query.append("{} = '{}'".format(key, value))
             elif type(value) == bool:
                 query.append("{} = {}".format(key, str(value).lower()))
             elif type(value) == int:
                 query.append("{} = {}".format(key, value))
         query_str = " and ".join(query)
-        print "Query:", query_str
         return self.service.files().list(q=query_str).execute()["files"]
 
     def share(self, file_id, **kwargs):
