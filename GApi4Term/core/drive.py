@@ -17,12 +17,16 @@ class DirectorySync(object):
         self.conflict_callback = callback
 
     def sync_dir(self, path=None, folder_id=None):
+        import pdb; pdb.set_trace()
         if path is None:
             path = self.fs_path
         if folder_id is None:
             folder_id = self.drive_folder_id
+        
+        if folder_id is None:
+            folder_id = self.drive.create_folder(os.path.basename(path))["id"]
 
-        fs_entries = list(os.scandir(path))
+        fs_entries = [os.stat(os.path.join(path, x)) for x in os.listdir(path)]
         fs_entry_map = {x.name: x for x in fs_entries}
         fs_files = [x.name for x in fs_entries if x.is_file()]
         fs_dirs = [x.name for x in fs_entries if x.is_dir()]
@@ -32,12 +36,22 @@ class DirectorySync(object):
         drive_files = [x["name"] for x in drive_entries if x["mimeType"] != self.folder_mime]
         drive_folders = [x["name"] for x in drive_entries if x["mimeType"] == self.folder_mime]
 
+        
+
     def sync_file(self, fs_file, drive_file):
-        if not os.path.isfile(fs_file.path) and not drive_file["trashed"]: #Both exist
+        if os.path.isfile(fs_file.path) and not drive_file["trashed"]: #Both exist
             if md5(fs_path) == drive_file["md5Checksum"]:
                 return
-            import pdb; pdb.set_trace()
+            print "Both do not have the same time"
     
+    def fs_get_info(self, path):
+        stat = os.stat(path)
+        return {
+            "name": os.basename(path),
+            "md5Checksum": self.md5(path),
+            "lastModified": datetime.utcfromtimestamp(stat.st_mtime),
+        }
+
     def md5(self, path):
         hash_md5 = hashlib.md5()
         with open(path, 'rb') as f:
@@ -82,7 +96,7 @@ class Drive(object):
         return self.create_folder(self.public_folder, **opts)["id"]
     
     def sync_dir(self, folder_id, path, callback):
-        ds = DirectorySync(drive, path, folder_id, callback)
+        ds = DirectorySync(self, path, folder_id, callback)
         ds.sync_dir()
 
     def iterate_dir(self, dir_id, parents=None):

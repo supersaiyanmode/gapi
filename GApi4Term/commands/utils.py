@@ -1,4 +1,5 @@
 import argparse
+import os
 
 class MessageType(object):
     def __call__(self, string):
@@ -17,6 +18,12 @@ class AttachFileType(argparse.FileType):
 
     def __call__(self, path):
         return AttachFileType, super(AttachFileType, self).__call__(path)
+
+class DirType(object):
+    def __call__(self, path):
+        if os.path.isdir(path) and not os.path.islink(path):
+            return DirType, path
+        raise argparse.ArgumentTypeError("Not a directory: " + path)
 
 class KeyValuePairType(object):
     def __init__(self, sep="="):
