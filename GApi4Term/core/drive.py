@@ -32,14 +32,20 @@ class DirectorySync(object):
         drive_files = [x["name"] for x in drive_entries if x["mimeType"] != self.folder_mime]
         drive_folders = [x["name"] for x in drive_entries if x["mimeType"] == self.folder_mime]
 
-    def sync_file(self, fs_path, drive_id):
-        if not os.path.isfile(fs_path) and not drive_id["trashed"]: #Both exist
-            pass
+    def sync_file(self, fs_file, drive_file):
+        if not os.path.isfile(fs_file.path) and not drive_file["trashed"]: #Both exist
+            if md5(fs_path) == drive_file["md5Checksum"]:
+                return
+            import pdb; pdb.set_trace()
     
     def md5(self, path):
         hash_md5 = hashlib.md5()
         with open(path, 'rb') as f:
-            pass
+            buf = f.read(65536)
+            while len(buf) > 0:
+                hash_md5.update(buf)
+                buf = f.read(blocksize)
+            return hash_md5.digest()
 
 
 class Drive(object):
