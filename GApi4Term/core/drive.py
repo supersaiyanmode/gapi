@@ -3,6 +3,7 @@ import os
 from httplib2 import Http
 import mimetypes
 import hashlib
+from datetime import datetime
 
 from apiclient import discovery, errors
 from apiclient.http import MediaFileUpload
@@ -26,19 +27,35 @@ class DirectorySync(object):
         if folder_id is None:
             folder_id = self.drive.create_folder(os.path.basename(path))["id"]
 
-        fs_entries = [os.stat(os.path.join(path, x)) for x in os.listdir(path)]
-        fs_entry_map = {x.name: x for x in fs_entries}
-        fs_files = [x.name for x in fs_entries if x.is_file()]
-        fs_dirs = [x.name for x in fs_entries if x.is_dir()]
+        fs_entries = [self.fs_get_info(os.path.join(path, x)) for x in os.listdir(path)]
+        fs_entry_map = {x["name"]: x for x in fs_entries}
+        fs_files = {x["name"] for x in fs_entries if x["isFile"]}
+        fs_dirs = {x["name"] for x in fs_entries if x["isDir"]}
 
-        drive_entries = list(self.search(parents=folder_id, trashed=True))
+        drive_entries = list(self.drive.search(parents=folder_id, trashed=True))
         drive_entry_map = {x["name"]: x for x in drive_entries }
-        drive_files = [x["name"] for x in drive_entries if x["mimeType"] != self.folder_mime]
-        drive_folders = [x["name"] for x in drive_entries if x["mimeType"] == self.folder_mime]
-
+        drive_files = {x["name"] for x in drive_entries if x["mimeType"] != self.folder_mime}
+        drive_dirs = {x["name"] for x in drive_entries if x["mimeType"] == self.folder_mime}
         
+        for name in drive_files | fs_files:
+            self.sync_file(name, fs_entry_map.get(name), drive_entry_map.get(name))
+        for file_name in set(fs_files) - set(drive_files): #File in FS but not in Drive: Upload
+            self.drive.create_file(name=name, parents=folder_id)
+        
+        for file_name in set(drive_files) - set(fs_files): #File in Drive but not in FS: Conflict
+            if drive_entries[file_name]['trashed']:
+                os.remove(drive_entries[file_name]["path"])
 
-    def sync_file(self, fs_file, drive_file):
+        for dir_name in set(fs_dirs) - set(drive_dirs): #Exists in FS, not in drive: Create
+            self.drive.create_folder(dir_name, parents=folder_id)
+
+
+    def sync_file(self, name, fs_file, drive_file):
+        if fs_file is None and drive_file:
+            if drive_file["trashed"]:
+                return
+            
+
         if os.path.isfile(fs_file.path) and not drive_file["trashed"]: #Both exist
             if md5(fs_path) == drive_file["md5Checksum"]:
                 return
@@ -47,15 +64,18 @@ class DirectorySync(object):
     def fs_get_info(self, path):
         stat = os.stat(path)
         return {
-            "name": os.basename(path),
+            "isFile": os.path.isfile(path),
+            "isDir": os.path.isdir(path),
+            "name": os.path.basename(path),
+            "path": path,
             "md5Checksum": self.md5(path),
             "lastModified": datetime.utcfromtimestamp(stat.st_mtime),
         }
 
-    def md5(self, path):
+    def md5(self, path, blocksize=65536):
         hash_md5 = hashlib.md5()
         with open(path, 'rb') as f:
-            buf = f.read(65536)
+            buf = f.read(blocksize)
             while len(buf) > 0:
                 hash_md5.update(buf)
                 buf = f.read(blocksize)
