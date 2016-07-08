@@ -10,6 +10,8 @@ from apiclient.http import MediaFileUpload
 
 from oauth2client.client import OAuth2Credentials
 
+import iso8601
+
 class DirectorySync(object):
     def __init__(self, drive, path, folder_id, callback):
         self.drive = drive
@@ -18,15 +20,15 @@ class DirectorySync(object):
         self.conflict_callback = callback
 
     def sync_dir(self, path=None, folder_id=None):
-        import pdb; pdb.set_trace()
         if path is None:
             path = self.fs_path
         if folder_id is None:
             folder_id = self.drive_folder_id
         
         if folder_id is None:
+            print "Creating folder:", path
             folder_id = self.drive.create_folder(os.path.basename(path))["id"]
-
+        import pdb; pdb.set_trace();
         fs_entries = [self.fs_get_info(os.path.join(path, x)) for x in os.listdir(path)]
         fs_entry_map = {x["name"]: x for x in fs_entries}
         fs_files = {x["name"] for x in fs_entries if x["isFile"]}
@@ -38,28 +40,36 @@ class DirectorySync(object):
         drive_dirs = {x["name"] for x in drive_entries if x["mimeType"] == self.folder_mime}
         
         for name in drive_files | fs_files:
-            self.sync_file(name, fs_entry_map.get(name), drive_entry_map.get(name))
-        for file_name in set(fs_files) - set(drive_files): #File in FS but not in Drive: Upload
-            self.drive.create_file(name=name, parents=folder_id)
-        
-        for file_name in set(drive_files) - set(fs_files): #File in Drive but not in FS: Conflict
-            if drive_entries[file_name]['trashed']:
-                os.remove(drive_entries[file_name]["path"])
+            print "Syncing file:", os.path.join(path, name), "..",
+            self.sync_file(path, folder_id, name,
+                    fs_entry_map.get(name), drive_entry_map.get(name))
 
         for dir_name in set(fs_dirs) - set(drive_dirs): #Exists in FS, not in drive: Create
             self.drive.create_folder(dir_name, parents=folder_id)
 
 
-    def sync_file(self, name, fs_file, drive_file):
+    def sync_file(self, path, folder_id, name, fs_file, drive_file):
         if fs_file is None and drive_file:
             if drive_file["trashed"]:
+                print "Was deleted on drive; untouched on FS"
                 return
-            
-
-        if os.path.isfile(fs_file.path) and not drive_file["trashed"]: #Both exist
-            if md5(fs_path) == drive_file["md5Checksum"]:
+            print "TODO: Download:", os.path.join(path, name)
+        elif fs_file and not drive_file:
+            self.drive.create_file(fs_file["path"], parents=folder_id)
+            print "Doesn't exist in drive; Uploaded."
+        else: #Both exist
+            if md5(fs_path) == drive_file["md5Checksum"] and not drive_file["trashed"]:
+                print "In Sync"
                 return
-            print "Both do not have the same time"
+            if drive_file["lastModified"] > fs_files["lastModified"]: #Drive file is newer
+                if drive_file["trashed"]:
+                    print "Deleted on Drive; Deleted on FS"
+                    os.remove(os.path.join(path, name))
+                else:
+                    print "TODO: Download:", os.path.join(path, name)
+            else:
+                self.drive.create_file(fs_file["path"], parents=folder_id)
+                print "Newer version on FS; Uploaded."
     
     def fs_get_info(self, path):
         stat = os.stat(path)
@@ -85,6 +95,8 @@ class DirectorySync(object):
 class Drive(object):
     public_folder = "GAPI4TermPublic"
     folder_mime = "application/vnd.google-apps.folder"
+    default_fields = ["id", "mimeType", "name", "createdTime", "modifiedTime",
+                "version", "md5Checksum"]
 
     def __init__(self, cred):
         credentials = OAuth2Credentials.from_json(json.dumps(cred))
@@ -167,15 +179,14 @@ class Drive(object):
             return self.service.files().create(body=kwargs).execute()
 
     def get_file(self, file_id, fields=None):
-        field_list = ["id", "mimeType", "name", "createdTime", "modifiedTime",
-                "version", "md5Checksum"]
+        cur_fields = self.default_fields
         if fields is not None:
-            field_list = field_list + fields
-        fields_str = ",".join(field_list)
+            cur_fields = cur_fields + fields
+        fields_str = ",".join(cur_fields)
         return self.service.files().get(fileId=file_id,fields=fields_str).execute()
 
 
-    def search(self, trashed=False, *args, **kwargs):
+    def search(self, trashed=False, fields=None, *args, **kwargs):
         query = list(args)
         kwargs["trashed"] = trashed
 
@@ -198,7 +209,14 @@ class Drive(object):
                 query.append("{} = {}".format(key, value))
         query_str = " and ".join(query)
         #TODO: Make this into a generator that automatically uses nextPageToken
-        return self.service.files().list(q=query_str).execute()["files"]
+
+        cur_fields = self.default_fields + (fields or [])
+        fields_str = ",".join("files/" + x for x in cur_fields)
+
+        result = self.service.files().list(q=query_str, fields=fields_str).execute()["files"]
+        for res in result:
+            res["lastModified"] = iso8601.parse_date(res["modifiedTime"])
+        return result
 
     def share(self, file_id, **kwargs):
         return self.service.permissions().create(fileId=file_id, body=kwargs).execute()
