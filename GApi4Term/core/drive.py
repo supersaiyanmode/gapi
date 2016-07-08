@@ -11,6 +11,7 @@ from apiclient.http import MediaFileUpload
 from oauth2client.client import OAuth2Credentials
 
 import iso8601
+import pytz
 
 class DirectorySync(object):
     def __init__(self, drive, path, folder_id, callback):
@@ -19,7 +20,7 @@ class DirectorySync(object):
         self.drive_folder_id = folder_id
         self.conflict_callback = callback
 
-    def sync_dir(self, path=None, folder_id=None):
+    def sync(self, path=None, folder_id=None):
         if path is None:
             path = self.fs_path
         if folder_id is None:
@@ -28,29 +29,45 @@ class DirectorySync(object):
         if folder_id is None:
             print "Creating folder:", path
             folder_id = self.drive.create_folder(os.path.basename(path))["id"]
-        import pdb; pdb.set_trace();
+        
         fs_entries = [self.fs_get_info(os.path.join(path, x)) for x in os.listdir(path)]
         fs_entry_map = {x["name"]: x for x in fs_entries}
         fs_files = {x["name"] for x in fs_entries if x["isFile"]}
         fs_dirs = {x["name"] for x in fs_entries if x["isDir"]}
 
-        drive_entries = list(self.drive.search(parents=folder_id, trashed=True))
+        drive_entries = list(self.drive.search(parents=folder_id) + self.drive.search(
+                                parents=folder_id, trashed=True))
         drive_entry_map = {x["name"]: x for x in drive_entries }
-        drive_files = {x["name"] for x in drive_entries if x["mimeType"] != self.folder_mime}
-        drive_dirs = {x["name"] for x in drive_entries if x["mimeType"] == self.folder_mime}
+        drive_files = {x["name"] for x in drive_entries if x["mimeType"] != self.drive.folder_mime}
+        drive_dirs = {x["name"] for x in drive_entries if x["mimeType"] == self.drive.folder_mime}
         
         for name in drive_files | fs_files:
             print "Syncing file:", os.path.join(path, name), "..",
             self.sync_file(path, folder_id, name,
                     fs_entry_map.get(name), drive_entry_map.get(name))
 
-        for dir_name in set(fs_dirs) - set(drive_dirs): #Exists in FS, not in drive: Create
-            self.drive.create_folder(dir_name, parents=folder_id)
+        for dir_name in fs_dirs | drive_dirs: #Exists in FS, not in drive: Create
+            print "Syncing folder:", os.path.join(path, name), "..",
+            dir_id = self.sync_dir(path, folder_id, name,
+                    fs_entry_map.get(name), drive_entry_map.get(name))
+            self.sync(os.path.join(path, name), dir_id or folder_id)
+            
+    def sync_dir(self, path, folder_id, name, fs_dir, drive_dir):
+        if fs_dir is None and drive_dir:
+            if drive["trashed"]:
+                print "Was deleted on drive; untouched on FS"
+                return
+            print "Created directory:", os.path.join(path, name)
+            os.mkdir(os.path.join(path, name))
+        elif fs_dir and not drive_dir:
+            res = self.drive.create_folder(name=name, parents=folder_id)
+            print "Created folder on Drive"
+            return res["id"]
 
 
     def sync_file(self, path, folder_id, name, fs_file, drive_file):
         if fs_file is None and drive_file:
-            if drive_file["trashed"]:
+            if drive_file.get("trashed"):
                 print "Was deleted on drive; untouched on FS"
                 return
             print "TODO: Download:", os.path.join(path, name)
@@ -58,11 +75,11 @@ class DirectorySync(object):
             self.drive.create_file(fs_file["path"], parents=folder_id)
             print "Doesn't exist in drive; Uploaded."
         else: #Both exist
-            if md5(fs_path) == drive_file["md5Checksum"] and not drive_file["trashed"]:
+            if self.md5(fs_file["path"]) == drive_file["md5Checksum"] and not drive_file.get("trashed"):
                 print "In Sync"
                 return
-            if drive_file["lastModified"] > fs_files["lastModified"]: #Drive file is newer
-                if drive_file["trashed"]:
+            if drive_file["lastModified"] > fs_file["lastModified"]: #Drive file is newer
+                if drive_file.get("trashed"):
                     print "Deleted on Drive; Deleted on FS"
                     os.remove(os.path.join(path, name))
                 else:
@@ -73,13 +90,15 @@ class DirectorySync(object):
     
     def fs_get_info(self, path):
         stat = os.stat(path)
+        modifiedTime = datetime.utcfromtimestamp(stat.st_mtime)
+        modifiedTime = pytz.utc.localize(modifiedTime)
         return {
             "isFile": os.path.isfile(path),
             "isDir": os.path.isdir(path),
             "name": os.path.basename(path),
             "path": path,
             "md5Checksum": self.md5(path),
-            "lastModified": datetime.utcfromtimestamp(stat.st_mtime),
+            "lastModified": modifiedTime,
         }
 
     def md5(self, path, blocksize=65536):
@@ -89,7 +108,7 @@ class DirectorySync(object):
             while len(buf) > 0:
                 hash_md5.update(buf)
                 buf = f.read(blocksize)
-            return hash_md5.digest()
+            return hash_md5.hexdigest()
 
 
 class Drive(object):
@@ -129,7 +148,7 @@ class Drive(object):
     
     def sync_dir(self, folder_id, path, callback):
         ds = DirectorySync(self, path, folder_id, callback)
-        ds.sync_dir()
+        ds.sync()
 
     def iterate_dir(self, dir_id, parents=None):
         if parents is None:
