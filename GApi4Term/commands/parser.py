@@ -3,11 +3,13 @@ import argparse
 from .accounts import AccountsCommandsHandler
 from .email import EmailCommandsHandler
 from .drive import DriveCommandsHandler
+from .googl import ShortenUrlCommandHandler
 
 handlers = [
     AccountsCommandsHandler,
     EmailCommandsHandler,
     DriveCommandsHandler,
+    ShortenUrlCommandHandler,
 ]
 
 class Parser(object):

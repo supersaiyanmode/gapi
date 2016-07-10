@@ -13,6 +13,7 @@ class OAuthWorkflow(object):
         scopes = [
             'https://mail.google.com/',
             'https://www.googleapis.com/auth/drive',
+            'https://www.googleapis.com/auth/urlshortener',
         ]
 	self.flow =  OAuth2WebServerFlow(
                 client_id=client_id,
