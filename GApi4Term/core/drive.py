@@ -46,23 +46,28 @@ class DirectorySync(object):
             self.sync_file(path, folder_id, name,
                     fs_entry_map.get(name), drive_entry_map.get(name))
 
-        for dir_name in fs_dirs | drive_dirs: #Exists in FS, not in drive: Create
-            print "Syncing folder:", os.path.join(path, name), "..",
+        for name in fs_dirs | drive_dirs: #Exists in FS, not in drive: Create
+            child_dir = os.path.join(path, name)
+            print "Syncing folder:", child_dir, "..",
             dir_id = self.sync_dir(path, folder_id, name,
                     fs_entry_map.get(name), drive_entry_map.get(name))
-            self.sync(os.path.join(path, name), dir_id or folder_id)
+            self.sync(os.path.join(path, name), dir_id or drive_entry_map.get(name)["id"])
             
     def sync_dir(self, path, folder_id, name, fs_dir, drive_dir):
         if fs_dir is None and drive_dir:
-            if drive["trashed"]:
+            if drive_dir.get("trashed"):
                 print "Was deleted on drive; untouched on FS"
                 return
-            print "Created directory:", os.path.join(path, name)
             os.mkdir(os.path.join(path, name))
+            print "Created directory:", os.path.join(path, name)
         elif fs_dir and not drive_dir:
             res = self.drive.create_folder(name=name, parents=folder_id)
             print "Created folder on Drive"
             return res["id"]
+        elif fs_dir and not drive_dir.get("trashed"):
+            print "In Sync"
+        else:
+            print "[UNKNOWN]"
 
 
     def sync_file(self, path, folder_id, name, fs_file, drive_file):
@@ -92,12 +97,14 @@ class DirectorySync(object):
         stat = os.stat(path)
         modifiedTime = datetime.utcfromtimestamp(stat.st_mtime)
         modifiedTime = pytz.utc.localize(modifiedTime)
+        isDir = os.path.isdir(path)
+        isFile = os.path.isfile(path)
         return {
-            "isFile": os.path.isfile(path),
-            "isDir": os.path.isdir(path),
+            "isFile": isFile,
+            "isDir": isDir,
             "name": os.path.basename(path),
             "path": path,
-            "md5Checksum": self.md5(path),
+            "md5Checksum": self.md5(path) if isFile else None,
             "lastModified": modifiedTime,
         }
 
