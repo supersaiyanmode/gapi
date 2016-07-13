@@ -4,12 +4,14 @@ from .accounts import AccountsCommandsHandler
 from .email import EmailCommandsHandler
 from .drive import DriveCommandsHandler
 from .googl import ShortenUrlCommandHandler
+from .tasks import TasksCommandsHandler
 
 handlers = [
     AccountsCommandsHandler,
     EmailCommandsHandler,
     DriveCommandsHandler,
     ShortenUrlCommandHandler,
+    TasksCommandsHandler,
 ]
 
 class Parser(object):

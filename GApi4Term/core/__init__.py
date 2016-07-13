@@ -3,6 +3,7 @@ from gmail import GMail
 from drive import Drive
 from oauth import GoogleAccounts
 from urlshortener import URLShortener
+from tasks import Tasks
 
 __all__ = [
         Config,
@@ -10,5 +11,6 @@ __all__ = [
         Drive,
         GoogleAccounts,
         URLShortener,
+        Tasks
 ]
 
