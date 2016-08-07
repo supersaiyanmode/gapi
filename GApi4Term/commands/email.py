@@ -1,41 +1,9 @@
 from itertools import groupby
 import argparse
 
-from GApi4Term.core import GMail
+from GApi4Term.core import GMail, TableTemplate
 from GApi4Term.commands.utils import KeyValuePairType, AttachFileType
 from GApi4Term.commands.utils import MessageType, MessageFileType
-
-def prepareKeyValueHTML(args):
-    e = lambda x: cgi.escape(unicode(x)).encode('ascii', 'xmlcharrefreplace')
-    
-    tableStyle = "width:100%;border:1px solid #000;"
-    headerStyle = "background-color:#000;color:white;width:50%;"
-    fieldCellStyle = "background-color:#eee;color:black;padding:5px;"
-    valueCellStyle = "background-color:#fff;color:black;padding:5px;"
-    
-    rows = ""
-    for key, value in args:
-        rows += "<tr>"
-        rows += "<td style='{fieldCellStyle}'>{key}</td>".format(**locals())
-        rows += "<td style='{valueCellStyle}'>{value}</td>".format(**locals())
-        rows += "\n"
-
-    
-    return """ 
-    <html>
-        <head>
-        </head>
-        <body>
-        <table style="{tableStyle} {headerStyle}">
-        <tr>
-        <th>Field</th><th>Value</th>
-        </tr>
-        {rows}
-        </table>
-        </body>
-    </html>
-    """.format(**locals())
-
 
 class EmailCommandsHandler(object):
     command = "email"
@@ -82,7 +50,7 @@ class EmailCommandsHandler(object):
         for typ, parts in groupby(args.parts, key=lambda x: x[0]):
             _, parts = zip(*parts)
             if typ == KeyValuePairType:
-                message = message.html(prepareKeyValueHTML(parts))
+                message = message.html(TableTemplate().html(parts))
             elif typ == MessageFileType:
                 for msgFile in parts:
                     message = message.text(msgFile.read())

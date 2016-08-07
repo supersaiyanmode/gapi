@@ -15,6 +15,41 @@ import json
 from apiclient import discovery, errors
 from oauth2client.client import OAuth2Credentials
 
+class TableTemplate(object):
+    def html(self, args):
+	e = lambda x: cgi.escape(unicode(x)).encode('ascii', 'xmlcharrefreplace')
+	
+	tableStyle = "width:100%;border:1px solid #000;"
+	headerStyle = "background-color:#000;color:white;width:50%;"
+	fieldCellStyle = "background-color:#eee;color:black;padding:5px;"
+	valueCellStyle = "background-color:#fff;color:black;padding:5px;"
+	
+	rows = ""
+	for key, value in args:
+	    rows += "<tr>"
+	    rows += "<td style='{fieldCellStyle}'>{key}</td>".format(**locals())
+	    rows += "<td style='{valueCellStyle}'>{value}</td>".format(**locals())
+	    rows += "\n"
+
+	
+	return """ 
+	<html>
+	    <head>
+	    </head>
+	    <body>
+	    <table style="{tableStyle} {headerStyle}">
+	    <tr>
+	    <th>Field</th><th>Value</th>
+	    </tr>
+	    {rows}
+	    </table>
+	    </body>
+	</html>
+	""".format(**locals())
+
+
+
+
 class GMailMessage(object):
     def __init__(self, gmail, frm, to, subject):
         self.gmail = gmail
@@ -82,7 +117,6 @@ class GMail(object):
 
     def send(self, obj):
 	try:
-	    print "sending:", obj["raw"]
 	    message = (self.service.users().messages()
                     .send(userId="me", body=obj)
                     .execute())
