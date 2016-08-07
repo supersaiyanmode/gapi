@@ -7,7 +7,7 @@ requirements = [str(x.req) for x in parse_requirements("requirements.txt", sessi
 
 setup(
     name='gapi4term',
-    version='0.8.4',
+    version='0.8.5',
     description='Command Line for Google Services',
     author='Srivatsan Iyer',
     author_email='supersaiyanmode.rox@gmail.com',
