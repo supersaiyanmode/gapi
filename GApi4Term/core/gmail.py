@@ -116,13 +116,10 @@ class GMail(object):
         return GMailMessage(self, frm, to, subject)
 
     def send(self, obj):
-	try:
-	    message = (self.service.users().messages()
-                    .send(userId="me", body=obj)
-                    .execute())
-            return message['id']
-	except errors.HttpError, e:
-	    return None
+	message = (self.service.users().messages()
+		.send(userId="me", body=obj)
+		.execute())
+	return message['id']
 
     def detail(self, message_id):
 	def parse_message(msg):
