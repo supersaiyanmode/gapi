@@ -11,6 +11,7 @@ from datetime import datetime
 import mimetypes
 import os
 import json
+import cgi
 
 from apiclient import discovery, errors
 from oauth2client.client import OAuth2Credentials
@@ -26,6 +27,8 @@ class TableTemplate(object):
 	
 	rows = ""
 	for key, value in args:
+	    key = cgi.escape(key)
+	    value = cgi.escape(value)
 	    rows += "<tr>"
 	    rows += "<td style='{fieldCellStyle}'>{key}</td>".format(**locals())
 	    rows += "<td style='{valueCellStyle}'>{value}</td>".format(**locals())
