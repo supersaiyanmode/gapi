@@ -211,6 +211,18 @@ class Drive(object):
         fields_str = ",".join(cur_fields)
         return self.service.files().get(fileId=file_id,fields=fields_str).execute()
 
+    def download_file(self, file_id):
+        class DriveDownloader(object):
+            def write(self, val):
+                self.val = val
+
+        req = drive.service.files().get_media(fileId=file_id)
+        drive_buffer = DriveDownloader()
+        downloader = http.MediaIoBaseDownload(drive_buffer, req)
+        done = False
+        while not done:
+            status, done = downloader.next_chunk()
+            yield drive_buffer.val
 
     def search(self, trashed=False, fields=None, *args, **kwargs):
         query = list(args)
