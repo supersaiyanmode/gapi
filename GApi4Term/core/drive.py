@@ -216,7 +216,7 @@ class Drive(object):
             def write(self, val):
                 self.val = val
 
-        req = drive.service.files().get_media(fileId=file_id)
+        req = self.service.files().get_media(fileId=file_id)
         drive_buffer = DriveDownloader()
         downloader = http.MediaIoBaseDownload(drive_buffer, req)
         done = False
