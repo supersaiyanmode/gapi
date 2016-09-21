@@ -7,6 +7,7 @@ from datetime import datetime
 
 from apiclient import discovery, errors
 from apiclient.http import MediaFileUpload
+from googleapiclient.http import MediaIoBaseDownload
 
 from oauth2client.client import OAuth2Credentials
 
@@ -218,7 +219,7 @@ class Drive(object):
 
         req = self.service.files().get_media(fileId=file_id)
         drive_buffer = DriveDownloader()
-        downloader = http.MediaIoBaseDownload(drive_buffer, req)
+        downloader = MediaIoBaseDownload(drive_buffer, req)
         done = False
         while not done:
             status, done = downloader.next_chunk()
